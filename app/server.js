@@ -76,15 +76,6 @@ app.get('/api/state', (req, res) => {
   });
 });
 
-// 교사: API 키 등록
-app.post('/api/teacher/apikey', (req, res) => {
-  const { cls, apiKey, model } = req.body || {};
-  if (!store.isValidClass(cls)) return res.status(400).json({ error: '학급이 올바르지 않습니다.' });
-  if (!apiKey || !String(apiKey).trim()) return res.status(400).json({ error: 'API 키를 입력해 주세요.' });
-  store.setApiKey(cls, apiKey, model);
-  res.json({ ok: true });
-});
-
 // 교사: 저장된 대화 불러오기
 app.get('/api/chat', (req, res) => {
   const { cls, philosopher } = req.query;
@@ -94,16 +85,18 @@ app.get('/api/chat', (req, res) => {
 });
 
 // 교사: AI 사상가와 대화
+// API 키는 교사 브라우저가 매 요청마다 보내며, 서버는 절대 저장하지 않습니다.
 app.post('/api/chat', async (req, res) => {
-  const { cls, philosopher, message } = req.body || {};
+  const { cls, philosopher, message, apiKey, model } = req.body || {};
   if (!store.isValidClass(cls)) return res.status(400).json({ error: '학급이 올바르지 않습니다.' });
   if (philosopher !== 'kant' && philosopher !== 'leopold')
     return res.status(400).json({ error: '사상가를 선택해 주세요.' });
   if (!message || !String(message).trim()) return res.status(400).json({ error: '메시지를 입력해 주세요.' });
 
-  const c = store.get(cls);
-  if (!c.apiKey) return res.status(400).json({ error: 'API 키가 등록되지 않았습니다. 교사 시작 화면에서 키를 입력해 주세요.' });
+  const key = String(apiKey || '').trim();
+  if (!key) return res.status(400).json({ error: 'API 키가 없습니다. 교사 화면에서 키를 입력해 주세요.' });
 
+  const c = store.get(cls);
   const history = (philosopher === 'leopold' ? c.leopoldChat : c.kantChat)
     .map((m) => ({ role: m.role, content: m.content }));
   const messages = [...history, { role: 'user', content: String(message).trim() }];
@@ -112,12 +105,12 @@ app.post('/api/chat', async (req, res) => {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': c.apiKey,
+        'x-api-key': key,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: c.model || 'claude-sonnet-4-6',
+        model: model || 'claude-sonnet-4-6',
         max_tokens: 600,
         system: PERSONAS[philosopher],
         messages,

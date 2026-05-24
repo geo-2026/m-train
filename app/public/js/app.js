@@ -53,6 +53,10 @@
   };
   let S = Object.assign({}, FRESH);
 
+  // 교사 API 키 — 이 브라우저 세션의 메모리에만 보관.
+  // sessionStorage/서버/디스크 어디에도 저장하지 않으며, 탭을 닫거나 새로고침하면 사라집니다.
+  let teacherKey = '';
+
   function save() { try { sessionStorage.setItem('mt_state', JSON.stringify(S)); } catch (_) {} }
   function load() {
     try { const r = sessionStorage.getItem('mt_state'); if (r) S = Object.assign({}, FRESH, JSON.parse(r)); } catch (_) {}
@@ -175,35 +179,31 @@
       <div class="panel">
         <div class="section-title">👩‍🏫 교사 시작 — Claude API 키 입력</div>
         <div class="bubble blue">교실 대표로서 AI 사상가(칸트·레오폴드)와 대화하려면 <b>Claude(클로드) API 키</b>가 필요해요.
-        키는 이 컴퓨터(서버)에만 저장되며 학생에게는 전송되지 않습니다.</div>
-        <label class="fld">Claude API 키</label>
-        <input class="txt" id="inKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+        키는 <b>이 화면(브라우저)에서만 잠깐 사용</b>되고 서버·기기 어디에도 저장되지 않아요. 창을 닫으면 사라지므로 <b>앱을 켤 때마다 다시 입력</b>합니다.</div>
+        <label class="fld">Claude API 키 (언제든 다시 입력해 바꿀 수 있어요)</label>
+        <input class="txt" id="inKey" type="password" placeholder="sk-ant-..." autocomplete="off" value="${esc(teacherKey)}">
         <label class="fld">사용할 모델</label>
         <select class="txt" id="inModel">
           <option value="claude-sonnet-4-6">claude-sonnet-4-6 (추천 · 균형)</option>
           <option value="claude-opus-4-7">claude-opus-4-7 (최고 품질)</option>
           <option value="claude-haiku-4-5">claude-haiku-4-5 (빠름·저렴)</option>
         </select>
-        <div class="muted mt">※ API 키는 console.anthropic.com 에서 발급받을 수 있어요.</div>
+        <div class="muted mt">※ API 키는 console.anthropic.com 에서 발급받을 수 있어요. 저장하지 않으니 안심하세요.</div>
         <div class="btn-row between mt">
           <button class="btn gray" id="back1b">◀ 이전</button>
           <button class="btn blue" id="goManage">시작하기 (질문 수집·대화) ▶</button>
         </div>
       </div>`;
+    const sel = $('#inModel'); if (S.model) sel.value = S.model;
     $('#back1b').addEventListener('click', () => go(1));
-    $('#goManage').addEventListener('click', async () => {
+    $('#goManage').addEventListener('click', () => {
       const key = $('#inKey').value.trim();
       const model = $('#inModel').value;
       if (!key) return toast('API 키를 입력해 주세요.', 'err');
-      try {
-        await api('/api/teacher/apikey', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ cls: S.cls, apiKey: key, model }),
-        });
-        S.model = model; save();
-        toast('API 키가 등록되었어요!', 'ok');
-        go(10);
-      } catch (e) { toast(e.message, 'err'); }
+      teacherKey = key;          // 세션 메모리에만 보관
+      S.model = model; save();   // 모델 선택만 저장(키는 저장 안 함)
+      toast('API 키를 입력했어요! (저장되지 않음)', 'ok');
+      go(10);
     });
   };
 
@@ -484,6 +484,7 @@
   let pollTimer = null, lastVersion = -1, curPhil = 'kant', chats = { kant: [], leopold: [] };
 
   renderers[10] = function () {
+    if (!teacherKey) { toast('먼저 Claude API 키를 입력해 주세요.', 'err'); go(3); return; }
     $('#page10').innerHTML = `
       <div class="comic-title"><h1>교사 진행 화면</h1><span class="sub">${esc(S.cls)}반 · 교실 대표로 AI 사상가와 대화</span></div>
       <div class="teacher-grid">
@@ -517,7 +518,7 @@
     $('#chatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
     $('#chatReset').addEventListener('click', resetChat);
     $('#savePdf').addEventListener('click', saveTeacherPdf);
-    $('#reKey').addEventListener('click', () => { stopPoll(); go(3); });
+    $('#reKey').addEventListener('click', () => { teacherKey = ''; stopPoll(); go(3); });
 
     curPhil = 'kant';
     loadChat('kant'); loadChat('leopold');
@@ -590,7 +591,7 @@
     try {
       const r = await api('/api/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ cls: S.cls, philosopher: curPhil, message: text }),
+        body: JSON.stringify({ cls: S.cls, philosopher: curPhil, message: text, apiKey: teacherKey, model: S.model }),
       });
       chats[curPhil][chats[curPhil].length - 1] = { role: 'assistant', content: r.reply };
       renderChat();

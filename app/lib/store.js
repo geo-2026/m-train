@@ -12,9 +12,7 @@ const CLASSES = ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6'];
 function blankClass() {
   return {
     questions: [],   // {id, studentNo, name, kantQ, leopoldQ, ts}
-    apiKey: '',      // teacher Anthropic key (never sent to students)
-    model: 'claude-sonnet-4-6',
-    kantChat: [],    // [{role:'user'|'assistant', content}]
+    kantChat: [],    // [{role:'user'|'assistant', content}]  (대화 내용만, 키는 저장 안 함)
     leopoldChat: [],
     version: 0,      // bumped whenever questions change (for polling)
   };
@@ -43,12 +41,8 @@ function persist() {
   saveTimer = setTimeout(() => {
     try {
       if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-      const out = {};
-      for (const c of CLASSES) {
-        const { apiKey, ...rest } = state[c];
-        out[c] = rest;
-      }
-      fs.writeFileSync(FILE, JSON.stringify(out, null, 1), 'utf8');
+      // 질문/대화만 저장합니다. API 키는 애초에 서버에 보관하지 않습니다.
+      fs.writeFileSync(FILE, JSON.stringify(state, null, 1), 'utf8');
     } catch (e) {
       console.warn('[store] 상태 저장 실패:', e.message);
     }
@@ -82,14 +76,6 @@ function submitQuestions(cls, { studentNo, name, kantQ, leopoldQ }) {
   return c;
 }
 
-function setApiKey(cls, apiKey, model) {
-  const c = state[cls];
-  if (!c) return false;
-  c.apiKey = (apiKey || '').trim();
-  if (model) c.model = model;
-  return true;
-}
-
 function appendChat(cls, philosopher, userMsg, assistantMsg) {
   const c = state[cls];
   if (!c) return;
@@ -110,4 +96,4 @@ function clearChat(cls, philosopher) {
 
 load();
 
-module.exports = { CLASSES, get, isValidClass, submitQuestions, setApiKey, appendChat, clearChat };
+module.exports = { CLASSES, get, isValidClass, submitQuestions, appendChat, clearChat };

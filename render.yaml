@@ -5,10 +5,12 @@ services:
     name: m-train
     runtime: node
     plan: free
+    region: singapore     # 한국에서 가장 가까운 무료 리전
     rootDir: app          # 앱 코드는 app/ 폴더에 있습니다
     buildCommand: npm install
     startCommand: node server.js
     autoDeploy: true
+    healthCheckPath: /api/config
     envVars:
       - key: NODE_VERSION
         value: "22"

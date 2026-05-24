@@ -1,6 +1,9 @@
 # 의존성 (배포 시 자동 설치됨)
 node_modules/
 
+# cloudflared 실행 파일 (실행 시 자동 다운로드, 약 50MB)
+app/bin/
+
 # 실행 중 생성되는 런타임 데이터 / 임시 파일
 app/data/state.json
 app/data/*.pdf

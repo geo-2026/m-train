@@ -29,8 +29,12 @@ M-TRAIN/
 `app` 폴더의 **`시작하기.bat`** 더블클릭 → 검은 창에 **학생 접속 주소 + QR**이 표시됩니다.
 학생은 같은 와이파이에서 그 주소/QR로 접속하면 됩니다.
 
-- 공개 단축 URL(인터넷): **`시작하기(공개URL).bat`** → `https://m-train.loca.lt` 형태 생성
-- 명령어: `cd app && npm install && npm start`
+- 🌟 **즉시 공개 URL(추천, 인터넷)**: **`시작하기(즉시공개URL).bat`** → `https://....trycloudflare.com` 주소가 바로 생성됩니다.
+  학생은 **클릭 한 번으로 바로 접속**(확인창·비밀번호 없음). 최초 1회 `cloudflared`(약 50MB)를 자동 내려받습니다. 명령어: `npm run cloudflare`
+- 공개 단축 URL(localtunnel): **`시작하기(공개URL).bat`** → `https://m-train.loca.lt` (단, 첫 접속 시 공인 IP를 비밀번호로 한 번 입력해야 함)
+- 같은 와이파이만: `cd app && npm install && npm start`
+
+> 위 두 공개 URL은 **교사 PC가 켜져 있는 동안만** 유효합니다(주소는 실행할 때마다 새로 생성). PC를 꺼도 항상 열려 있는 **영구 주소**가 필요하면 아래 **클라우드 배포**를 이용하세요.
 
 ---
 

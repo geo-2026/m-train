@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "tunnel": "node server.js --tunnel"
+    "tunnel": "node server.js --tunnel",
+    "cloudflare": "node server.js --cloudflare"
   },
   "dependencies": {
     "express": "^4.19.2",

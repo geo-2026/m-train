@@ -12,6 +12,9 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const WANT_TUNNEL = process.argv.includes('--tunnel') || process.env.TUNNEL === '1';
 const TUNNEL_SUBDOMAIN = process.env.TUNNEL_SUBDOMAIN || 'm-train';
+// Cloudflare Quick Tunnel: 클릭 한 번으로 바로 접속(확인창/비밀번호 없음) — 즉시 공개 URL용
+const WANT_CF = process.argv.includes('--cloudflare') || process.argv.includes('--cf') || process.env.CLOUDFLARE === '1';
+let cfProc = null;
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -208,6 +211,34 @@ function lanIp() {
   return all[0] || 'localhost';
 }
 
+// Cloudflare Quick Tunnel 시작 → https://....trycloudflare.com URL 반환(실패 시 null)
+function startCloudflared() {
+  return new Promise((resolve) => {
+    const { spawn } = require('child_process');
+    const fs = require('fs');
+    const localBin = path.join(__dirname, 'bin', process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+    const cmd = fs.existsSync(localBin) ? localBin : 'cloudflared';
+    let cf;
+    try {
+      cf = spawn(cmd, ['tunnel', '--url', `http://localhost:${PORT}`, '--no-autoupdate'], { windowsHide: true });
+    } catch (e) {
+      console.warn('[cloudflare] 실행 실패(cloudflared 미설치?):', e.message);
+      return resolve(null);
+    }
+    cfProc = cf;
+    let done = false;
+    const onData = (buf) => {
+      const m = buf.toString().match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (m && !done) { done = true; resolve(m[0]); }
+    };
+    cf.stdout.on('data', onData);
+    cf.stderr.on('data', onData);
+    cf.on('error', (e) => { if (!done) { done = true; console.warn('[cloudflare]', e.message); resolve(null); } });
+    cf.on('exit', () => { if (!done) { done = true; resolve(null); } });
+    setTimeout(() => { if (!done) { done = true; resolve(null); } }, 20000);
+  });
+}
+
 async function printBanner() {
   const line = '═'.repeat(56);
   console.log('\n' + line);
@@ -243,8 +274,19 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
       console.warn('[tunnel] 단축 URL 생성 실패(인터넷 필요):', e.message);
     }
   }
+  if (WANT_CF) {
+    console.log('  Cloudflare 즉시 공개 URL 생성 중... (몇 초 소요)');
+    const url = await startCloudflared();
+    if (url) NET.tunnelUrl = url;
+    else console.warn('[cloudflare] 공개 URL 생성 실패. bin/cloudflared 설치 여부와 인터넷을 확인하세요.');
+  }
   await printBanner();
 });
+
+// 종료 시 cloudflared 프로세스도 함께 정리
+function shutdown() { try { if (cfProc) cfProc.kill(); } catch (_) {} process.exit(0); }
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {

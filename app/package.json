@@ -1,0 +1,17 @@
+{
+  "name": "m-train",
+  "version": "1.0.0",
+  "description": "자연과 인간의 관계 단원 수업 활동 앱 (웹툰형)",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "tunnel": "node server.js --tunnel"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4",
+    "localtunnel": "^2.0.2"
+  }
+}

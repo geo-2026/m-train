@@ -1,0 +1,68 @@
+# 🚂 M-TRAIN — 자연과 인간의 관계 수업 활동 앱 (웹툰형)
+
+중학교 도덕/사회 「자연과 인간의 관계」 단원을 위한 **학생·교사 통합 웹 앱**입니다.
+웹툰(코믹) 스타일 디자인 · 학급별 실시간 질문 수집 · AI 사상가(칸트·레오폴드) 대화 · 한글 PDF 활동지 저장을 한 앱에서 제공합니다.
+
+> 앱 코드는 [`app/`](app) 폴더에 있습니다. 자세한 사용법은 [`app/README.md`](app/README.md) 참고.
+
+---
+
+## 📁 폴더 구조
+
+```
+M-TRAIN/
+├─ app/                 ← 실제 앱 (Node.js 서버 + 웹툰 SPA)
+│  ├─ server.js         ← Express 서버 (질문 수집 · AI 프록시 · PDF · QR)
+│  ├─ lib/              ← 저장소, 한글 PDF 생성
+│  ├─ public/           ← 화면(11페이지), 스타일, 이미지
+│  ├─ fonts/            ← 나눔고딕(OFL) — 어떤 OS에서도 한글 PDF가 깨지지 않게 내장
+│  └─ 시작하기.bat       ← 교사 PC에서 더블클릭 실행
+├─ DATA1 ~ DATA6        ← 원본 학습 자료(글·이미지·문제)
+├─ render.yaml          ← 클라우드(Render) 자동 배포 설정
+└─ .gitignore
+```
+
+---
+
+## ▶ 빠른 실행 (교사 PC)
+
+`app` 폴더의 **`시작하기.bat`** 더블클릭 → 검은 창에 **학생 접속 주소 + QR**이 표시됩니다.
+학생은 같은 와이파이에서 그 주소/QR로 접속하면 됩니다.
+
+- 공개 단축 URL(인터넷): **`시작하기(공개URL).bat`** → `https://m-train.loca.lt` 형태 생성
+- 명령어: `cd app && npm install && npm start`
+
+---
+
+## ☁️ 클라우드 배포 — 영구 단축주소 만들기 (PC를 켜두지 않아도 항상 접속)
+
+이 저장소에는 **Render.com** 자동 배포 설정(`render.yaml`)이 포함되어 있어, 무료로 영구 주소를 만들 수 있습니다.
+(결과 주소 예: `https://m-train.onrender.com`)
+
+### 단계
+1. [https://dashboard.render.com](https://dashboard.render.com) 접속 → **GitHub 계정(geo-2026)으로 로그인**.
+2. 우측 상단 **New +** → **Blueprint** 선택.
+3. **이 저장소(`m-train`)를 연결**합니다. (비공개 저장소이므로 Render에 GitHub 접근 권한을 한 번 허용해야 합니다.)
+4. Render가 `render.yaml`을 자동으로 읽어 `m-train` 웹 서비스를 만듭니다 → **Apply / Deploy** 클릭.
+5. 1~2분 후 **`https://<이름>.onrender.com`** 주소가 생성됩니다. 이 주소가 곧 **앱 실행 단축주소**입니다.
+6. (선택) 서비스 **Settings → Name** 에서 더 짧은 이름으로 바꿀 수 있습니다.
+
+### 참고 사항
+- **무료 플랜**은 15분간 접속이 없으면 잠들었다가 다음 접속 시 약 30초 정도 깨어나는 시간이 필요합니다(수업 시작 전 한 번 열어두면 됩니다).
+- 교사는 배포된 주소로 접속 → **교사로 시작** → API 키 입력. **API 키는 서버 메모리에만 저장**되며 코드/깃허브에는 저장되지 않습니다.
+- ⚠️ 공개 인터넷 주소이므로, 주소를 아는 사람은 같은 학급을 선택해 접속할 수 있습니다. **주소(또는 QR)는 우리 반 학생에게만 공유**하세요. 수업이 끝나면 Render 대시보드에서 서비스를 **Suspend**해 두면 안전합니다.
+- 저장소를 **공개(public)** 로 바꾸면, 아래 버튼으로 더 간단히 배포할 수도 있습니다:
+  `https://render.com/deploy?repo=https://github.com/geo-2026/m-train`
+
+### 다른 무료 호스팅도 가능
+Railway, Glitch, Replit 등도 같은 방식으로 동작합니다. 공통 설정: **루트 폴더 `app`**, 빌드 `npm install`, 시작 `node server.js`, 포트는 환경변수 `PORT` 자동 사용.
+
+---
+
+## 🔐 보안 / 개인정보
+
+- Claude API 키는 **서버 실행 중 메모리에만** 보관되고, 저장소(`.git`)나 `state.json`에 저장하지 않습니다.
+- 학생이 입력한 질문/대화는 `app/data/state.json`에 임시 저장되며 `.gitignore`로 업로드에서 제외됩니다.
+
+학습 자료 출처: `DATA1`(산악열차) · `DATA2`(관점·QUIZ) · `DATA4`(사상가) · `DATA5`(통합적 관점) · `DATA6`(웹툰 이미지).
+내장 글꼴: 나눔고딕(SIL Open Font License, `app/fonts/OFL.txt`).

@@ -245,14 +245,13 @@ function buildTeacherPdf(res, data) {
   field(doc, '저장 시각', today());
   doc.moveDown(0.4);
 
-  sectionHeader(doc, '1. 학생들이 사상가에게 한 질문', COLORS.navy);
+  sectionHeader(doc, '1. 학생들이 사상가에게 한 질문 (익명)', COLORS.navy);
   const qs = data.questions || [];
   if (qs.length === 0) {
     panel(doc, '수집된 질문이 없습니다.');
   } else {
     qs.forEach((it, i) => {
-      const head = `${i + 1}. ${it.studentNo || ''} ${it.name || ''}`;
-      let body = head + '\n';
+      let body = `질문 ${i + 1}\n`;
       if (it.kantQ) body += `   - 칸트에게: ${it.kantQ}\n`;
       if (it.leopoldQ) body += `   - 레오폴드에게: ${it.leopoldQ}`;
       panel(doc, body.trim(), { fontSize: 10, bg: COLORS.lightYellow, borderColor: COLORS.border });

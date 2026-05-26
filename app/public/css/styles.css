@@ -252,10 +252,11 @@ textarea.txt { resize: vertical; min-height: 90px; line-height: 1.5; }
 .teacher-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 760px) { .teacher-grid, .fig2, .pc-grid, .ox-row { grid-template-columns: 1fr; } }
 .qfeed { max-height: 320px; overflow-y: auto; }
-.qfeed .qitem { border: 2.5px solid var(--ink); border-radius: 10px; padding: 9px 11px; margin: 8px 0; font-size: 14px; background: #fffef8; cursor: pointer; }
-.qfeed .qitem:hover { background: var(--yellow); }
-.qfeed .qitem .who { color: var(--blue); font-size: 13px; }
-.qfeed .qitem .ql { display: block; margin-top: 3px; }
+.qfeed .qitem { border: 2.5px solid var(--ink); border-radius: 10px; padding: 9px 11px; margin: 8px 0; font-size: 14px; background: #fffef8; }
+.qfeed .qitem .who { color: var(--blue); font-size: 13px; font-weight: 700; }
+.qfeed .qitem .ql { display: block; margin-top: 4px; }
+.qfeed .qitem .ql.clickq { cursor: pointer; border-radius: 7px; padding: 4px 6px; transition: background .12s; }
+.qfeed .qitem .ql.clickq:hover { background: var(--yellow); }
 .live-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); display: inline-block; animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: .3; } }
 

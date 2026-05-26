@@ -57,6 +57,16 @@
   // sessionStorage/서버/디스크 어디에도 저장하지 않으며, 탭을 닫거나 새로고침하면 사라집니다.
   let teacherKey = '';
 
+  // 익명 클라이언트 토큰 — 같은 학생이 질문을 고쳐 보낼 때 중복이 쌓이지 않도록 쓰는 임의 값.
+  // 개인을 식별하는 정보가 아니며, 학번·이름과는 무관합니다.
+  function clientId() {
+    try {
+      let id = sessionStorage.getItem('mt_cid');
+      if (!id) { id = 'c-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9); sessionStorage.setItem('mt_cid', id); }
+      return id;
+    } catch (_) { return 'c-' + Math.random().toString(36).slice(2, 12); }
+  }
+
   function save() { try { sessionStorage.setItem('mt_state', JSON.stringify(S)); } catch (_) {} }
   function load() {
     try { const r = sessionStorage.getItem('mt_state'); if (r) S = Object.assign({}, FRESH, JSON.parse(r)); } catch (_) {}
@@ -468,61 +478,86 @@
       S.kantQ = kq; S.leopoldQ = lq; save();
       const btn = $('#b9send'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 보내는 중...';
       try {
+        // 익명 제출: 학번·이름은 보내지 않습니다(학생 단말기에만 보관).
         await api('/api/questions', {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ cls: S.cls, studentNo: S.studentNo, name: S.name, kantQ: kq, leopoldQ: lq }),
+          body: JSON.stringify({ cls: S.cls, clientId: clientId(), kantQ: kq, leopoldQ: lq }),
         });
         toast('질문을 선생님께 전송했어요!', 'ok');
-        go(11);
+        go(12);
       } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = '질문 보내고 다음으로 ▶'; }
     });
   };
 
   // ========================================================================
-  // PAGE 10 — 교사: 실시간 질문 + AI 대화 + PDF 저장
+  // PAGE 10 — 교사: 학급 학생 질문 실시간 확인 (DB에서 가져옴)
   // ========================================================================
-  let pollTimer = null, lastVersion = -1, curPhil = 'kant', chats = { kant: [], leopold: [] };
+  let pollTimer = null, lastVersion = -1, curPhil = 'kant', chats = { kant: [], leopold: [] }, pendingChat = null;
 
   renderers[10] = function () {
-    if (!teacherKey) { toast('먼저 Claude API 키를 입력해 주세요.', 'err'); go(3); return; }
     $('#page10').innerHTML = `
-      <div class="comic-title"><h1>교사 진행 화면</h1><span class="sub">${esc(S.cls)}반 · 교실 대표로 AI 사상가와 대화</span></div>
-      <div class="teacher-grid">
-        <div class="panel">
-          <div class="section-title">📥 실시간 학생 질문 <span class="live-dot"></span></div>
-          <div class="muted">질문을 클릭하면 아래 대화창에 자동으로 입력돼요.</div>
-          <div class="qfeed" id="qfeed"><div class="muted mt">아직 들어온 질문이 없어요...</div></div>
+      <div class="comic-title"><h1>교사 화면 — 학생 질문</h1><span class="sub">${esc(S.cls)}반 · 학생들이 보낸 질문 모아보기</span></div>
+      <div class="panel">
+        <div class="section-title">📥 실시간 학생 질문 <span class="live-dot"></span></div>
+        <div class="muted">학생들이 9페이지에서 보낸 질문이 실시간으로 모여요. 질문을 클릭하면 대화 화면(11페이지)으로 넘어가 자동으로 입력돼요.
+        <b>학번·이름이 저장되지 않는 익명 질문</b>입니다.</div>
+        <div class="qfeed" id="qfeed"><div class="muted mt">아직 들어온 질문이 없어요...</div></div>
+        <div class="btn-row between mt">
+          <button class="btn gray" id="t10home">◀ 처음으로</button>
+          <button class="btn green big" id="t10chat">🤖 AI 사상가와 대화하기 ▶</button>
         </div>
-        <div class="panel">
-          <div class="section-title green">🤖 AI 사상가와 대화</div>
-          <div class="chat-tabs">
-            <div class="chat-tab kant act" data-p="kant">🧠 AI 칸트</div>
-            <div class="chat-tab leopold" data-p="leopold">🌿 AI 레오폴드</div>
-          </div>
-          <div class="chat-win" id="chatWin"></div>
-          <div class="chat-input">
-            <input class="txt" id="chatIn" placeholder="교실 대표로 질문을 입력하세요...">
-            <button class="btn blue" id="chatSend">전송</button>
-          </div>
-          <div class="btn-row between mt">
-            <button class="btn gray" id="chatReset">현재 대화 초기화</button>
-            <button class="btn green" id="savePdf">💾 대화 저장 (PDF)</button>
-          </div>
-          <div class="muted center mt">키 재입력이 필요하면 <button class="btn gray" id="reKey" style="font-size:13px;padding:4px 10px">API 키 다시 입력</button></div>
+      </div>`;
+    $('#t10home').addEventListener('click', () => { stopPoll(); go(1); });
+    $('#t10chat').addEventListener('click', () => { pendingChat = null; stopPoll(); go(11); });
+    startPoll();
+  };
+
+  // ========================================================================
+  // PAGE 11 — 교사: AI 사상가(칸트·레오폴드)와 대화 + 대화 PDF 저장
+  // ========================================================================
+  renderers[11] = function () {
+    if (!teacherKey) { toast('먼저 Claude API 키를 입력해 주세요.', 'err'); go(3); return; }
+    $('#page11').innerHTML = `
+      <div class="comic-title"><h1>AI 사상가와 대화</h1><span class="sub">${esc(S.cls)}반 · 교실 대표로 칸트·레오폴드에게 묻기</span></div>
+      <div class="panel">
+        <div class="section-title green">🤖 AI 사상가와 대화</div>
+        <div class="chat-tabs">
+          <div class="chat-tab kant act" data-p="kant">🧠 AI 칸트</div>
+          <div class="chat-tab leopold" data-p="leopold">🌿 AI 레오폴드</div>
+        </div>
+        <div class="chat-win" id="chatWin"></div>
+        <div class="chat-input">
+          <input class="txt" id="chatIn" placeholder="교실 대표로 질문을 입력하세요...">
+          <button class="btn blue" id="chatSend">전송</button>
+        </div>
+        <div class="btn-row between mt">
+          <button class="btn yellow" id="toQ">◀ 학생 질문 보기 (10페이지)</button>
+          <button class="btn green big" id="savePdf">💾 대화 저장 (PDF)</button>
+        </div>
+        <div class="btn-row between mt">
+          <button class="btn gray" id="chatReset">현재 대화 초기화</button>
+          <button class="btn gray" id="reKey">API 키 다시 입력</button>
         </div>
       </div>`;
 
-    $$('#page10 .chat-tab').forEach((el) =>
+    $$('#page11 .chat-tab').forEach((el) =>
       el.addEventListener('click', () => switchPhil(el.dataset.p)));
     $('#chatSend').addEventListener('click', sendChat);
     $('#chatIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
     $('#chatReset').addEventListener('click', resetChat);
     $('#savePdf').addEventListener('click', saveTeacherPdf);
-    $('#reKey').addEventListener('click', () => { teacherKey = ''; stopPoll(); go(3); });
+    $('#toQ').addEventListener('click', () => go(10));
+    $('#reKey').addEventListener('click', () => { teacherKey = ''; go(3); });
 
-    curPhil = 'kant';
+    // 10페이지에서 질문을 클릭해 넘어온 경우: 해당 사상가 탭으로 전환 + 입력창 자동 채움
+    curPhil = (pendingChat && pendingChat.phil) ? pendingChat.phil : 'kant';
+    $$('#page11 .chat-tab').forEach((el) => el.classList.toggle('act', el.dataset.p === curPhil));
+    renderChat();
     loadChat('kant'); loadChat('leopold');
-    startPoll();
+    if (pendingChat && pendingChat.text) {
+      const inp = $('#chatIn'); if (inp) { inp.value = pendingChat.text; inp.focus(); }
+    }
+    pendingChat = null;
   };
 
   function startPoll() {
@@ -541,21 +576,22 @@
   function renderFeed(qs) {
     const feed = $('#qfeed'); if (!feed) return;
     if (!qs.length) { feed.innerHTML = '<div class="muted mt">아직 들어온 질문이 없어요...</div>'; return; }
-    feed.innerHTML = qs.slice().reverse().map((q) => `
-      <div class="qitem" data-k="${esc(q.kantQ)}" data-l="${esc(q.leopoldQ)}">
-        <span class="who">${esc(q.studentNo)} ${esc(q.name)}</span>
-        ${q.kantQ ? `<span class="ql">🧠 ${esc(q.kantQ)}</span>` : ''}
-        ${q.leopoldQ ? `<span class="ql">🌿 ${esc(q.leopoldQ)}</span>` : ''}
+    // 익명 질문만 표시 (학번·이름 없음). 질문을 클릭하면 11페이지 대화창으로 자동 입력.
+    feed.innerHTML = qs.map((q, i) => `
+      <div class="qitem">
+        <span class="who">질문 ${i + 1}</span>
+        ${q.kantQ ? `<span class="ql clickq" data-p="kant" data-q="${esc(q.kantQ)}">🧠 ${esc(q.kantQ)}</span>` : ''}
+        ${q.leopoldQ ? `<span class="ql clickq" data-p="leopold" data-q="${esc(q.leopoldQ)}">🌿 ${esc(q.leopoldQ)}</span>` : ''}
       </div>`).join('');
-    $$('#qfeed .qitem').forEach((el) => el.addEventListener('click', () => {
-      const q = curPhil === 'kant' ? el.dataset.k : el.dataset.l;
-      const inp = $('#chatIn'); inp.value = q; inp.focus();
+    $$('#qfeed .clickq').forEach((el) => el.addEventListener('click', () => {
+      pendingChat = { phil: el.dataset.p, text: el.dataset.q };
+      stopPoll(); go(11);
     }));
   }
 
   function switchPhil(p) {
     curPhil = p;
-    $$('#page10 .chat-tab').forEach((el) => el.classList.toggle('act', el.dataset.p === p));
+    $$('#page11 .chat-tab').forEach((el) => el.classList.toggle('act', el.dataset.p === p));
     renderChat();
   }
 
@@ -625,11 +661,11 @@
   }
 
   // ========================================================================
-  // PAGE 11 — 학생: 통합적 관점 + 느낀 점 + PDF
+  // PAGE 12 — 학생: 통합적 관점 + 9페이지 질문 자동표시 + 느낀 점 + PDF
   // ========================================================================
-  renderers[11] = function () {
+  renderers[12] = function () {
     const it = D.integrated;
-    $('#page11').innerHTML = `
+    $('#page12').innerHTML = `
       <div class="panel reading">
         <div class="section-title">🤝 ${esc(it.title)}</div>
         <div class="bubble blue">${esc(it.body)}</div>
@@ -647,18 +683,18 @@
         <label class="fld">철학자(칸트·레오폴드)와의 대화에서 느낀 점</label>
         <textarea class="txt" id="inFeel" placeholder="예) 동물을 대하는 태도에 대해 다시 생각하게 되었다...">${esc(S.feeling)}</textarea>
         <div class="btn-row between mt">
-          <button class="btn gray" id="b11back">◀ 이전</button>
-          <button class="btn red big" id="b11pdf">📄 활동지 PDF로 저장하기</button>
+          <button class="btn gray" id="b12back">◀ 이전</button>
+          <button class="btn red big" id="b12pdf">📄 활동지 PDF로 저장하기</button>
         </div>
         <div id="doneBox"></div>
       </div>`;
-    $('#b11back').addEventListener('click', () => go(9));
-    $('#b11pdf').addEventListener('click', async () => {
+    $('#b12back').addEventListener('click', () => go(9));
+    $('#b12pdf').addEventListener('click', async () => {
       const th = $('#inThought').value.trim(), fe = $('#inFeel').value.trim();
       if (!th) return toast('통합적 관점에 대한 내 생각을 적어주세요.', 'err');
       if (!fe) return toast('철학자와의 대화에서 느낀 점을 적어주세요.', 'err');
       S.integratedThought = th; S.feeling = fe; save();
-      const btn = $('#b11pdf'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 만드는 중...';
+      const btn = $('#b12pdf'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 만드는 중...';
       try {
         await downloadPdf('/api/pdf/student', {
           cls: S.cls, studentNo: S.studentNo, name: S.name,

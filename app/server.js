@@ -52,30 +52,27 @@ app.get('/api/config', (req, res) => {
   res.json({ classes: store.CLASSES, defaultModel: 'claude-sonnet-4-6' });
 });
 
-// 학생: 질문 제출/갱신
+// 학생: 질문 제출/갱신 (익명 — 학번·이름은 받지도 저장하지도 않음)
 app.post('/api/questions', (req, res) => {
-  const { cls, studentNo, name, kantQ, leopoldQ } = req.body || {};
+  const { cls, clientId, kantQ, leopoldQ } = req.body || {};
   if (!store.isValidClass(cls)) return res.status(400).json({ error: '학급이 올바르지 않습니다.' });
   store.submitQuestions(cls, {
-    studentNo: String(studentNo || '').trim(),
-    name: String(name || '').trim(),
+    clientId: String(clientId || '').trim(),
     kantQ: String(kantQ || '').trim(),
     leopoldQ: String(leopoldQ || '').trim(),
   });
   res.json({ ok: true });
 });
 
-// 교사: 같은 학급 질문 실시간 폴링
+// 교사: 같은 학급 질문 실시간 폴링 (식별정보 없는 익명 질문만 반환)
 app.get('/api/state', (req, res) => {
   const cls = req.query.cls;
   if (!store.isValidClass(cls)) return res.status(400).json({ error: 'bad class' });
-  const c = store.get(cls);
+  const questions = store.getQuestions(cls);
   res.json({
-    version: c.version,
-    count: c.questions.length,
-    questions: c.questions.map((q) => ({
-      id: q.id, studentNo: q.studentNo, name: q.name, kantQ: q.kantQ, leopoldQ: q.leopoldQ, ts: q.ts,
-    })),
+    version: store.getVersion(cls),
+    count: questions.length,
+    questions: questions.map((q) => ({ kantQ: q.kantQ, leopoldQ: q.leopoldQ, ts: q.ts })),
   });
 });
 
@@ -83,8 +80,7 @@ app.get('/api/state', (req, res) => {
 app.get('/api/chat', (req, res) => {
   const { cls, philosopher } = req.query;
   if (!store.isValidClass(cls)) return res.status(400).json({ error: 'bad class' });
-  const c = store.get(cls);
-  res.json({ messages: philosopher === 'leopold' ? c.leopoldChat : c.kantChat });
+  res.json({ messages: store.getChat(cls, philosopher) });
 });
 
 // 교사: AI 사상가와 대화
@@ -99,9 +95,7 @@ app.post('/api/chat', async (req, res) => {
   const key = String(apiKey || '').trim();
   if (!key) return res.status(400).json({ error: 'API 키가 없습니다. 교사 화면에서 키를 입력해 주세요.' });
 
-  const c = store.get(cls);
-  const history = (philosopher === 'leopold' ? c.leopoldChat : c.kantChat)
-    .map((m) => ({ role: m.role, content: m.content }));
+  const history = store.getChat(cls, philosopher).map((m) => ({ role: m.role, content: m.content }));
   const messages = [...history, { role: 'user', content: String(message).trim() }];
 
   try {
@@ -159,13 +153,12 @@ app.post('/api/pdf/student', (req, res) => {
 app.post('/api/pdf/teacher', (req, res) => {
   const { cls } = req.body || {};
   if (!store.isValidClass(cls)) return res.status(400).json({ error: '학급이 올바르지 않습니다.' });
-  const c = store.get(cls);
   try {
     pdf.buildTeacherPdf(res, {
       cls,
-      questions: c.questions.map((q) => ({ studentNo: q.studentNo, name: q.name, kantQ: q.kantQ, leopoldQ: q.leopoldQ })),
-      kantChat: c.kantChat,
-      leopoldChat: c.leopoldChat,
+      questions: store.getQuestions(cls).map((q) => ({ kantQ: q.kantQ, leopoldQ: q.leopoldQ })),
+      kantChat: store.getChat(cls, 'kant'),
+      leopoldChat: store.getChat(cls, 'leopold'),
     });
   } catch (e) {
     res.status(500).json({ error: 'PDF 생성 실패: ' + e.message });

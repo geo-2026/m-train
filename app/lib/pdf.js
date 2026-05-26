@@ -173,13 +173,18 @@ function footer(doc) {
   const range = doc.bufferedPageRange();
   for (let i = range.start; i < range.start + range.count; i++) {
     doc.switchToPage(i);
+    // 하단 여백 아래에 글자를 쓰면 pdfkit이 새 페이지를 만들어 버리므로,
+    // 푸터를 그리는 동안만 bottom 여백을 0으로 두고 줄바꿈을 끈다.
+    const oldBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     const y = doc.page.height - 30;
     doc.font('kr').fontSize(8).fill(COLORS.gray)
       .text('자연과 인간의 관계 · M-TRAIN 수업 활동', doc.page.margins.left, y,
-        { width: pageWidth(doc), align: 'left' });
+        { width: pageWidth(doc), align: 'left', lineBreak: false });
     doc.font('kr').fontSize(8).fill(COLORS.gray)
       .text(`${i - range.start + 1} / ${range.count}`, doc.page.margins.left, y,
-        { width: pageWidth(doc), align: 'right' });
+        { width: pageWidth(doc), align: 'right', lineBreak: false });
+    doc.page.margins.bottom = oldBottom;
   }
 }
 
@@ -201,27 +206,27 @@ function buildStudentPdf(res, data) {
   field(doc, '작성 시각', today());
   doc.moveDown(0.4);
 
-  sectionHeader(doc, '① 나의 성향 진단 (산악열차 체크리스트)', COLORS.blue);
+  sectionHeader(doc, '1. 나의 성향 진단 (산악열차 체크리스트)', COLORS.blue);
   const t = data.tendency || {};
   const tendencyText =
     `나의 성향: ${t.label || '-'}\n` +
     `인간 중심 응답 ${t.human ?? 0}개 · 생태 중심 응답 ${t.eco ?? 0}개 (총 ${t.total ?? 0}문항)`;
   panel(doc, tendencyText, { bg: COLORS.lightBlue, borderColor: COLORS.blue, label: '진단 결과', labelColor: COLORS.blue });
 
-  sectionHeader(doc, '② 형성평가 결과 (O·X 도전)', COLORS.green);
+  sectionHeader(doc, '2. 형성평가 결과 (O·X 도전)', COLORS.green);
   const q = data.quiz || {};
   panel(doc,
     `${q.stage ? q.stage + '차 도전' : '도전'}에서 통과했어요! 정답 ${q.correct ?? 0} / ${q.total ?? 8} 개`,
     { bg: COLORS.lightGreen, borderColor: COLORS.green, label: '평가 결과', labelColor: COLORS.green });
 
-  sectionHeader(doc, '③ 사상가에게 한 질문', COLORS.navy);
-  panel(doc, data.kantQ, { label: '🧠 칸트에게 한 질문', labelColor: COLORS.blue, bg: COLORS.lightYellow, borderColor: COLORS.blue });
-  panel(doc, data.leopoldQ, { label: '🌿 레오폴드에게 한 질문', labelColor: COLORS.green, bg: COLORS.lightGreen, borderColor: COLORS.green });
+  sectionHeader(doc, '3. 사상가에게 한 질문', COLORS.navy);
+  panel(doc, data.kantQ, { label: '[칸트에게 한 질문]', labelColor: COLORS.blue, bg: COLORS.lightYellow, borderColor: COLORS.blue });
+  panel(doc, data.leopoldQ, { label: '[레오폴드에게 한 질문]', labelColor: COLORS.green, bg: COLORS.lightGreen, borderColor: COLORS.green });
 
-  sectionHeader(doc, '④ 통합적 관점 — 나의 생각', COLORS.blue);
+  sectionHeader(doc, '4. 통합적 관점 — 나의 생각', COLORS.blue);
   panel(doc, data.integratedThought, { borderColor: COLORS.blue });
 
-  sectionHeader(doc, '⑤ 철학자와의 대화에서 느낀 점', COLORS.red);
+  sectionHeader(doc, '5. 철학자와의 대화에서 느낀 점', COLORS.red);
   panel(doc, data.feeling, { borderColor: COLORS.red });
 
   footer(doc);
@@ -240,7 +245,7 @@ function buildTeacherPdf(res, data) {
   field(doc, '저장 시각', today());
   doc.moveDown(0.4);
 
-  sectionHeader(doc, '① 학생들이 사상가에게 한 질문', COLORS.navy);
+  sectionHeader(doc, '1. 학생들이 사상가에게 한 질문', COLORS.navy);
   const qs = data.questions || [];
   if (qs.length === 0) {
     panel(doc, '수집된 질문이 없습니다.');
@@ -248,19 +253,19 @@ function buildTeacherPdf(res, data) {
     qs.forEach((it, i) => {
       const head = `${i + 1}. ${it.studentNo || ''} ${it.name || ''}`;
       let body = head + '\n';
-      if (it.kantQ) body += `   🧠 칸트: ${it.kantQ}\n`;
-      if (it.leopoldQ) body += `   🌿 레오폴드: ${it.leopoldQ}`;
+      if (it.kantQ) body += `   - 칸트에게: ${it.kantQ}\n`;
+      if (it.leopoldQ) body += `   - 레오폴드에게: ${it.leopoldQ}`;
       panel(doc, body.trim(), { fontSize: 10, bg: COLORS.lightYellow, borderColor: COLORS.border });
     });
   }
 
-  sectionHeader(doc, '② AI 칸트와의 대화', COLORS.blue);
+  sectionHeader(doc, '2. AI 칸트와의 대화', COLORS.blue);
   const kc = data.kantChat || [];
   if (kc.length === 0) panel(doc, '대화 내용이 없습니다.');
   else kc.forEach((m) => bubble(doc, m.role === 'user' ? '교실 대표(우리 반)' : 'AI 칸트',
     m.content, m.role === 'user' ? 'right' : 'left', COLORS.blue));
 
-  sectionHeader(doc, '③ AI 레오폴드와의 대화', COLORS.green);
+  sectionHeader(doc, '3. AI 레오폴드와의 대화', COLORS.green);
   const lc = data.leopoldChat || [];
   if (lc.length === 0) panel(doc, '대화 내용이 없습니다.');
   else lc.forEach((m) => bubble(doc, m.role === 'user' ? '교실 대표(우리 반)' : 'AI 레오폴드',

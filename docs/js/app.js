@@ -604,8 +604,13 @@
   async function loadChat(p) {
     try {
       const r = await MTBackend.getChat(S.cls, p);
-      chats[p] = r.messages || [];
-      if (p === curPhil) renderChat();
+      const msgs = r.messages || [];
+      // 진입 직후 불러오기가 늦게 도착해 방금 보낸 메시지를 지우지 않도록,
+      // 로컬에 더 많은(아직 저장 전) 메시지가 있으면 덮어쓰지 않는다.
+      if (msgs.length >= (chats[p] || []).length) {
+        chats[p] = msgs;
+        if (p === curPhil) renderChat();
+      }
     } catch (_) {}
   }
 

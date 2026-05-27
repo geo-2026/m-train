@@ -12,6 +12,7 @@ app/data/mtrain.db-shm
 app/data/*.pdf
 app/data/_*.png
 app/_*.js
+app/_*.mjs
 app/_*.json
 app/_*.pdf
 

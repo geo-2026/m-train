@@ -485,7 +485,7 @@
   // ========================================================================
   // PAGE 10 — 교사: 학급 학생 질문 실시간 확인 (DB에서 가져옴)
   // ========================================================================
-  let pollTimer = null, lastVersion = -1, curPhil = 'kant', chats = { kant: [], leopold: [] }, pendingChat = null;
+  let pollTimer = null, lastFeedJSON = '', curPhil = 'kant', chats = { kant: [], leopold: [] }, pendingChat = null;
 
   renderers[10] = function () {
     $('#page10').innerHTML = `
@@ -511,7 +511,7 @@
       try {
         await MTBackend.clearClass(S.cls);
         chats = { kant: [], leopold: [] };
-        lastVersion = -1; renderFeed([]);
+        lastFeedJSON = ''; renderFeed([]);
         toast('우리 반 데이터를 모두 삭제했어요.', 'ok');
       } catch (e) { toast(e.message, 'err'); }
     });
@@ -567,11 +567,15 @@
   };
 
   function startPoll() {
-    stopPoll(); lastVersion = -1;
+    stopPoll(); lastFeedJSON = '';
     const tick = async () => {
       try {
         const st = await MTBackend.getState(S.cls);
-        if (st.version !== lastVersion) { lastVersion = st.version; renderFeed(st.questions); }
+        const qs = st.questions || [];
+        // 서버 version 카운터 대신 실제 질문 내용 변화로 갱신 판단 → 일시적 불일치에도
+        // 다음 폴링에서 스스로 회복(피드가 빈 상태로 잠기지 않음).
+        const j = JSON.stringify(qs);
+        if (j !== lastFeedJSON) { lastFeedJSON = j; renderFeed(qs); }
       } catch (_) {}
     };
     tick();

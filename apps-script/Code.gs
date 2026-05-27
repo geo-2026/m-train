@@ -87,11 +87,24 @@ function rows(sh) {
   if (last < 2) return [];
   return sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
 }
-// 데이터 영역을 새 행들로 교체(헤더 유지)
+// 데이터 영역을 새 행들로 교체(헤더 유지). 기록 전 텍스트(@) 형식을 강제한다.
 function rewrite(sh, headers, data) {
   var last = sh.getLastRow();
   if (last > 1) sh.getRange(2, 1, last - 1, headers.length).clearContent();
-  if (data.length) sh.getRange(2, 1, data.length, headers.length).setValues(data);
+  if (data.length) {
+    var rng = sh.getRange(2, 1, data.length, headers.length);
+    rng.setNumberFormat('@');
+    rng.setValues(data);
+  }
+}
+// 행 추가 — appendRow 는 텍스트 형식을 무시하므로(학급 '1-6'이 날짜로 변환됨)
+// 대상 셀에 텍스트 형식을 지정한 뒤 setValues 로 기록한다.
+function appendRows(sh, headers, newRows) {
+  if (!newRows.length) return;
+  var startRow = sh.getLastRow() + 1;
+  var rng = sh.getRange(startRow, 1, newRows.length, headers.length);
+  rng.setNumberFormat('@');
+  rng.setValues(newRows);
 }
 
 function validClass(cls) { return CLASSES.indexOf(cls) !== -1; }
@@ -159,9 +172,11 @@ function appendChat(b) {
   lock.waitLock(20000);
   try {
     var sh = sheet('chats', C_HEADERS);
-    var now = Date.now();
-    if (b.userMsg != null) sh.appendRow([b.cls, phil, 'user', String(b.userMsg), now]);
-    if (b.assistantMsg != null) sh.appendRow([b.cls, phil, 'assistant', String(b.assistantMsg), now]);
+    var now = String(Date.now());
+    var add = [];
+    if (b.userMsg != null) add.push([b.cls, phil, 'user', String(b.userMsg), now]);
+    if (b.assistantMsg != null) add.push([b.cls, phil, 'assistant', String(b.assistantMsg), now]);
+    appendRows(sh, C_HEADERS, add);
     return { ok: true };
   } finally { lock.releaseLock(); }
 }

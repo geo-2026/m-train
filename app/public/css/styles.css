@@ -172,21 +172,25 @@ textarea.txt { resize: vertical; min-height: 90px; line-height: 1.5; }
 .figure figcaption { font-size: 13px; color: #555; margin-top: 6px; }
 .fig2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-/* ---- 체크리스트 ---- */
+/* ---- 체크리스트 (그렇다 / 아니다 선택형) ---- */
 .check-item {
-  display: flex; align-items: flex-start; gap: 12px; background: #fffef8;
+  display: flex; flex-direction: column; gap: 10px; background: #fffef8;
   border: 3px solid var(--ink); border-radius: 12px; padding: 12px 14px; margin: 10px 0;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.check-item.answered { background: var(--yellow); }
+.check-item .t { font-size: 16px; line-height: 1.5; }
+.check-num { font-size: 14px; color: var(--blue); margin-right: 4px; }
+.yn-row { display: flex; gap: 10px; }
+.yn-btn {
+  flex: 1; font-family: inherit; font-size: 16px; font-weight: 800; color: var(--ink);
+  border: 3px solid var(--ink); border-radius: 10px; padding: 10px 8px; background: #fff;
   cursor: pointer; box-shadow: 2px 2px 0 var(--ink); transition: transform .05s;
 }
-.check-item:hover { transform: translate(-1px,-1px); }
-.check-item.on { background: var(--yellow); }
-.check-item .box {
-  flex: 0 0 30px; height: 30px; border: 3px solid var(--ink); border-radius: 8px; background: #fff;
-  display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--green-d);
-}
-.check-item.on .box::after { content: '✔'; }
-.check-item .t { font-size: 16px; line-height: 1.5; padding-top: 3px; }
-.check-num { font-size: 14px; color: var(--blue); margin-right: 4px; }
+.yn-btn:hover { transform: translate(-1px,-1px); }
+.yn-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+.yn-btn.yes.sel { background: var(--green); color: #fff; }
+.yn-btn.no.sel { background: var(--red); color: #fff; }
 
 /* ---- 결과 카드 ---- */
 .result-card { text-align: center; padding: 22px; }

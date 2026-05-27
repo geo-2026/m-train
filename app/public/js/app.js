@@ -46,7 +46,7 @@
   // ---------- state ----------
   const FRESH = {
     cls: null, role: null, studentNo: '', name: '',
-    tendency: null,
+    tendency: null, checklistAns: null,
     quizStageIdx: 0, quizAttempt: null, quizResult: null,
     kantQ: '', leopoldQ: '', integratedThought: '', feeling: '',
     page: 1,
@@ -222,10 +222,17 @@
   // ========================================================================
   renderers[4] = function () {
     const r = D.reading;
+    if (!Array.isArray(S.checklistAns) || S.checklistAns.length !== D.checklist.length) {
+      S.checklistAns = new Array(D.checklist.length).fill(null);
+    }
+    const ans = S.checklistAns;
     const items = D.checklist.map((it, i) =>
-      `<div class="check-item" data-i="${i}">
-         <div class="box"></div>
+      `<div class="check-item${ans[i] ? ' answered' : ''}" data-i="${i}">
          <div class="t"><span class="check-num">${i + 1}.</span>${esc(it.t)}</div>
+         <div class="yn-row">
+           <button class="yn-btn yes${ans[i] === 'yes' ? ' sel' : ''}" data-i="${i}" data-v="yes">⭕ 그렇다</button>
+           <button class="yn-btn no${ans[i] === 'no' ? ' sel' : ''}" data-i="${i}" data-v="no">❌ 아니다</button>
+         </div>
        </div>`).join('');
     $('#page4').innerHTML = `
       <div class="panel reading">
@@ -237,19 +244,31 @@
       </div>
       <div class="panel">
         <div class="section-title green">✅ 나의 성향 체크리스트</div>
-        <div class="bubble green">글을 읽고 <b>내 생각과 같은 것</b>에 모두 체크해 보세요. (몇 개든 괜찮아요!)</div>
+        <div class="bubble green">글을 읽고 각 문장에 <b>‘그렇다’</b> 또는 <b>‘아니다’</b>로 답해 보세요. (10문항 모두 골라야 결과가 나와요!)</div>
         <div id="checks" class="mt">${items}</div>
         <div class="center mt"><button class="btn blue big" id="calcBtn">결과 확인하기 🔎</button></div>
         <div id="tendencyResult"></div>
       </div>`;
-    $$('#checks .check-item').forEach((el) =>
-      el.addEventListener('click', () => el.classList.toggle('on')));
+    $$('#checks .yn-btn').forEach((el) =>
+      el.addEventListener('click', () => {
+        const i = +el.dataset.i;
+        S.checklistAns[i] = el.dataset.v; save();
+        const item = el.closest('.check-item');
+        item.classList.add('answered');
+        $$('.yn-btn', item).forEach((b) => b.classList.toggle('sel', b.dataset.v === el.dataset.v));
+      }));
     $('#calcBtn').addEventListener('click', () => {
+      const a = S.checklistAns || [];
+      const unanswered = a.findIndex((v) => v == null);
+      if (unanswered !== -1 || a.length !== D.checklist.length) {
+        toast('아직 답하지 않은 문항이 있어요! 10문항 모두 골라주세요.', 'err');
+        const el = $$('#checks .check-item')[unanswered === -1 ? 0 : unanswered];
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
       let human = 0, eco = 0;
-      $$('#checks .check-item').forEach((el) => {
-        if (el.classList.contains('on')) {
-          (D.checklist[+el.dataset.i].type === 'human') ? human++ : eco++;
-        }
+      D.checklist.forEach((it, i) => {
+        if (a[i] === 'yes') { (it.type === 'human') ? human++ : eco++; }
       });
       let label, emoji, desc;
       if (human > eco) { label = '인간 중심주의 성향'; emoji = '🏗️'; desc = '사람의 편리함과 이익을 더 중요하게 생각하는 편이에요.'; }

@@ -96,6 +96,7 @@ function rewrite(sh, headers, data) {
     rng.setNumberFormat('@');
     rng.setValues(data);
   }
+  SpreadsheetApp.flush(); // 변경을 즉시 반영 → 다음 조회에서 바로 보이게
 }
 // 행 추가 — appendRow 는 텍스트 형식을 무시하므로(학급 '1-6'이 날짜로 변환됨)
 // 대상 셀에 텍스트 형식을 지정한 뒤 setValues 로 기록한다.
@@ -105,6 +106,7 @@ function appendRows(sh, headers, newRows) {
   var rng = sh.getRange(startRow, 1, newRows.length, headers.length);
   rng.setNumberFormat('@');
   rng.setValues(newRows);
+  SpreadsheetApp.flush(); // 변경을 즉시 반영
 }
 
 function validClass(cls) { return CLASSES.indexOf(cls) !== -1; }

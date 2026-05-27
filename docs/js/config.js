@@ -7,7 +7,7 @@
  * ==========================================================================*/
 (function () {
   // 배포 후 여기에 Apps Script 웹앱 주소를 넣으세요 (예: 'https://script.google.com/macros/s/XXXX/exec')
-  const DEFAULT_APPS_SCRIPT_URL = '';
+  const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxTXCp9WgtmP0LJWWC4eAVYP8viwM20sIvdWxL0tQha_YNRwTnDYWTdPqkoYFL8dRXA/exec';
 
   // 테스트/임시 override: 주소창에 ?api=<url> 가 있으면 그 값을 우선 사용
   let url = DEFAULT_APPS_SCRIPT_URL;

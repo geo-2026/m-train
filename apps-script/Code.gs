@@ -53,18 +53,31 @@ function getSpreadsheet() {
   if (!ss) {
     ss = SpreadsheetApp.create('M-TRAIN 데이터 (자동 생성)');
     props.setProperty('SHEET_ID', ss.getId());
-    setupSheet(ss, 'questions', Q_HEADERS);
-    setupSheet(ss, 'chats', C_HEADERS);
-    // 기본 시트(Sheet1) 정리
-    var def = ss.getSheetByName('Sheet1') || ss.getSheetByName('시트1');
-    if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
+    props.deleteProperty('FMT_DONE'); // 새 시트면 텍스트 형식을 다시 적용
   }
+  setupSheet(ss, 'questions', Q_HEADERS);
+  setupSheet(ss, 'chats', C_HEADERS);
+  ensureTextFormat(ss, props);
+  // 기본 시트(Sheet1) 정리
+  var def = ss.getSheetByName('Sheet1') || ss.getSheetByName('시트1');
+  if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
   return ss;
 }
 function setupSheet(ss, name, headers) {
   var sh = ss.getSheetByName(name) || ss.insertSheet(name);
   if (sh.getLastRow() === 0) sh.appendRow(headers);
   return sh;
+}
+// 모든 데이터 칸을 '텍스트(@)' 형식으로 고정 → '1-6' 같은 학급 값이 날짜로
+// 자동 변환되는 것을 방지한다. (시트마다 한 번만 적용)
+function ensureTextFormat(ss, props) {
+  if (props.getProperty('FMT_DONE') === '1') return;
+  var pairs = [['questions', Q_HEADERS], ['chats', C_HEADERS]];
+  for (var i = 0; i < pairs.length; i++) {
+    var sh = ss.getSheetByName(pairs[i][0]);
+    if (sh) sh.getRange(1, 1, sh.getMaxRows(), pairs[i][1].length).setNumberFormat('@');
+  }
+  props.setProperty('FMT_DONE', '1');
 }
 function sheet(name, headers) { return setupSheet(getSpreadsheet(), name, headers); }
 

@@ -226,7 +226,7 @@ function buildStudentPdf(res, data) {
   sectionHeader(doc, '4. 통합적 관점 — 나의 생각', COLORS.blue);
   panel(doc, data.integratedThought, { borderColor: COLORS.blue });
 
-  sectionHeader(doc, '5. 철학자와의 대화에서 느낀 점', COLORS.red);
+  sectionHeader(doc, '5. 철학자와의 대화에서 새롭게 배운 점 · 더 배우고 싶은 점', COLORS.red);
   panel(doc, data.feeling, { borderColor: COLORS.red });
 
   footer(doc);

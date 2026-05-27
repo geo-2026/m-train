@@ -661,11 +661,81 @@
   }
 
   // ========================================================================
-  // PAGE 12 — 학생: 통합적 관점 + 9페이지 질문 자동표시 + 느낀 점 + PDF
+  // PAGE 12 — 학생: 선생님이 교실 대표로 나눈 AI 사상가 대화 보기 (읽기 전용)
+  //   서버 GET /api/chat 으로 우리 반의 저장된 대화를 불러와 그대로 보여줍니다.
   // ========================================================================
+  let studentChatTimer = null;
+  let viewChats = { kant: [], leopold: [] };
+  let viewPhil = 'kant';
+
   renderers[12] = function () {
-    const it = D.integrated;
     $('#page12').innerHTML = `
+      <div class="comic-title"><h1>AI 사상가와의 대화 살펴보기</h1><span class="sub">${esc(S.cls)}반 · 선생님이 교실 대표로 나눈 대화예요</span></div>
+      <div class="panel">
+        <div class="section-title green">🤖 우리 반의 AI 사상가 대화 <span class="live-dot"></span></div>
+        <div class="bubble green">선생님이 <b>칸트·레오폴드</b> AI와 나눈 대화를 함께 읽어볼까요? 아래 탭을 눌러 사상가를 바꿔가며 볼 수 있어요. (대화가 진행되면 자동으로 새로 보여줘요.)</div>
+        <div class="chat-tabs">
+          <div class="chat-tab kant act" data-p="kant">🧠 AI 칸트</div>
+          <div class="chat-tab leopold" data-p="leopold">🌿 AI 레오폴드</div>
+        </div>
+        <div class="chat-win" id="viewChatWin"></div>
+        <div class="btn-row between mt">
+          <button class="btn gray" id="v12back">◀ 이전</button>
+          <button class="btn yellow" id="v12refresh">🔄 새로고침</button>
+          <button class="btn green big" id="v12next">생각 정리하러 가기 ▶</button>
+        </div>
+      </div>`;
+    $$('#page12 .chat-tab').forEach((el) => el.addEventListener('click', () => {
+      viewPhil = el.dataset.p;
+      $$('#page12 .chat-tab').forEach((t) => t.classList.toggle('act', t.dataset.p === viewPhil));
+      renderViewChat();
+    }));
+    $('#v12back').addEventListener('click', () => { stopStudentChatPoll(); go(9); });
+    $('#v12next').addEventListener('click', () => { stopStudentChatPoll(); go(13); });
+    $('#v12refresh').addEventListener('click', () => {
+      loadViewChat('kant'); loadViewChat('leopold'); toast('대화를 새로 불러왔어요.', 'ok');
+    });
+    viewPhil = 'kant';
+    $$('#page12 .chat-tab').forEach((t) => t.classList.toggle('act', t.dataset.p === viewPhil));
+    renderViewChat();
+    loadViewChat('kant'); loadViewChat('leopold');
+    startStudentChatPoll();
+  };
+
+  function renderViewChat() {
+    const win = $('#viewChatWin'); if (!win) return;
+    const msgs = viewChats[viewPhil] || [];
+    const aiName = viewPhil === 'kant' ? 'AI 칸트' : 'AI 레오폴드';
+    if (!msgs.length) {
+      win.innerHTML = `<div class="muted center mt">아직 선생님이 ${aiName}와 나눈 대화가 없어요.<br>선생님이 대화를 시작하면 여기에 나타나요. <b>🔄 새로고침</b>으로 다시 확인할 수 있어요.</div>`;
+      return;
+    }
+    win.innerHTML = msgs.map((m) =>
+      `<div class="msg ${m.role === 'user' ? 'user' : 'ai'}">
+        <span class="nm">${m.role === 'user' ? '교실 대표(우리 반)' : aiName}</span>${nl2br(m.content)}</div>`).join('');
+    win.scrollTop = win.scrollHeight;
+  }
+
+  async function loadViewChat(p) {
+    try {
+      const r = await api(`/api/chat?cls=${encodeURIComponent(S.cls)}&philosopher=${p}`);
+      viewChats[p] = r.messages || [];
+      if (p === viewPhil) renderViewChat();
+    } catch (_) {}
+  }
+
+  function startStudentChatPoll() {
+    stopStudentChatPoll();
+    studentChatTimer = setInterval(() => { loadViewChat('kant'); loadViewChat('leopold'); }, 4000);
+  }
+  function stopStudentChatPoll() { if (studentChatTimer) { clearInterval(studentChatTimer); studentChatTimer = null; } }
+
+  // ========================================================================
+  // PAGE 13 — 학생: 통합적 관점(DATA5) + 9페이지 질문 자동표시 + 새로 배운 점 + PDF
+  // ========================================================================
+  renderers[13] = function () {
+    const it = D.integrated;
+    $('#page13').innerHTML = `
       <div class="panel reading">
         <div class="section-title">🤝 ${esc(it.title)}</div>
         <div class="bubble blue">${esc(it.body)}</div>
@@ -680,21 +750,21 @@
         <div class="section-title green">✍️ 나의 생각 정리</div>
         <label class="fld">통합적 관점 — 자연과 사람이 함께 잘 살기 위해 내가 할 수 있는 노력</label>
         <textarea class="txt" id="inThought" placeholder="예) 가까운 거리는 걸어다니고, 쓰레기를 줄이고...">${esc(S.integratedThought)}</textarea>
-        <label class="fld">철학자(칸트·레오폴드)와의 대화에서 느낀 점</label>
-        <textarea class="txt" id="inFeel" placeholder="예) 동물을 대하는 태도에 대해 다시 생각하게 되었다...">${esc(S.feeling)}</textarea>
+        <label class="fld">철학자(칸트·레오폴드)와의 대화에서 새롭게 학습한 점, 또는 앞으로 더 학습하고 싶은 점</label>
+        <textarea class="txt" id="inFeel" placeholder="예) 동물을 대하는 태도를 새롭게 알게 되었고, 대지 윤리에 대해 더 배우고 싶다...">${esc(S.feeling)}</textarea>
         <div class="btn-row between mt">
-          <button class="btn gray" id="b12back">◀ 이전</button>
-          <button class="btn red big" id="b12pdf">📄 활동지 PDF로 저장하기</button>
+          <button class="btn gray" id="b13back">◀ 이전</button>
+          <button class="btn red big" id="b13pdf">📄 활동지 PDF로 저장하기</button>
         </div>
         <div id="doneBox"></div>
       </div>`;
-    $('#b12back').addEventListener('click', () => go(9));
-    $('#b12pdf').addEventListener('click', async () => {
+    $('#b13back').addEventListener('click', () => go(12));
+    $('#b13pdf').addEventListener('click', async () => {
       const th = $('#inThought').value.trim(), fe = $('#inFeel').value.trim();
       if (!th) return toast('통합적 관점에 대한 내 생각을 적어주세요.', 'err');
-      if (!fe) return toast('철학자와의 대화에서 느낀 점을 적어주세요.', 'err');
+      if (!fe) return toast('철학자와의 대화에서 새롭게 학습한 점(또는 더 배우고 싶은 점)을 적어주세요.', 'err');
       S.integratedThought = th; S.feeling = fe; save();
-      const btn = $('#b12pdf'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 만드는 중...';
+      const btn = $('#b13pdf'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 만드는 중...';
       try {
         await downloadPdf('/api/pdf/student', {
           cls: S.cls, studentNo: S.studentNo, name: S.name,
@@ -722,8 +792,8 @@
   async function boot() {
     try { const cfg = await api('/api/config'); if (cfg.classes) window.MT_CLASSES = cfg.classes; } catch (_) {}
     load();
-    // 교사 페이지를 떠나면 폴링 중지
-    document.addEventListener('visibilitychange', () => { if (document.hidden) stopPoll(); });
+    // 화면이 가려지면 폴링 중지(교사 질문 피드 + 학생 대화 보기)
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { stopPoll(); stopStudentChatPoll(); } });
     // 안전한 시작 페이지로 복귀
     const start = (S.cls && S.page) ? S.page : 1;
     go(start);
